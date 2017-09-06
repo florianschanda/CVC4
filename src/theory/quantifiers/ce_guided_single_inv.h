@@ -99,15 +99,6 @@ public:
 class CegConjectureSingleInv {
  private:
   friend class CegqiOutputSingleInv;
-  // for recognizing templates for invariant synthesis
-  Node substituteInvariantTemplates(
-      Node n, std::map<Node, Node>& prog_templ,
-      std::map<Node, std::vector<Node> >& prog_templ_vars);
-  // partially single invocation
-  Node removeDeepEmbedding( Node n, std::vector< Node >& progs,
-                            std::vector< TypeNode >& types, int& type_valid,
-                            std::map< Node, Node >& visited );
-  Node addDeepEmbedding( Node n, std::map< Node, Node >& visited );
   //presolve
   void collectPresolveEqTerms( Node n,
                                std::map< Node, std::vector< Node > >& teq );
@@ -120,6 +111,11 @@ class CegConjectureSingleInv {
                          unsigned index, std::map<Node, Node>& weak_imp);
   Node postProcessSolution(Node n);
 
+ private:
+  /** get embedding */
+  Node convertToEmbedding( Node n, std::map< Node, Node >& synth_fun_vars, std::map< Node, Node >& visited );
+  /** collect constants */
+  void collectConstants( Node n, std::map< TypeNode, std::vector< Node > >& consts, std::map< Node, bool >& visited );
  private:
   QuantifiersEngine* d_qe;
   CegConjecture* d_parent;
@@ -166,8 +162,10 @@ class CegConjectureSingleInv {
  public:
   CegConjectureSingleInv( QuantifiersEngine * qe, CegConjecture * p );
   ~CegConjectureSingleInv();
-  // original conjecture
+  // deep embedding conjecture
   Node d_quant;
+  // original conjecture
+  Node d_orig_quant;
   // single invocation portion of quantified formula
   Node d_single_inv;
   Node d_si_guard;
@@ -182,18 +180,15 @@ class CegConjectureSingleInv {
   // transition relation version per program
   std::map< Node, Node > d_trans_pre;
   std::map< Node, Node > d_trans_post;
+  // the template for the solution
   std::map< Node, std::vector< Node > > d_prog_templ_vars;
   std::map< Node, Node > d_templ;
   std::map< Node, Node > d_templ_arg;
-  //the non-single invocation portion of the quantified formula
-  std::map< Node, Node > d_nsi_op_map;
-  std::map< Node, Node > d_nsi_op_map_to_prog;
-  std::map< Node, Node > d_prog_to_eval_op;
  public:
   //get the single invocation lemma(s)
   void getInitialSingleInvLemma( std::vector< Node >& lems );
   //initialize
-  void initialize( Node q );
+  void initialize( Node si_q );
   //check
   bool check( std::vector< Node >& lems );
   //get solution

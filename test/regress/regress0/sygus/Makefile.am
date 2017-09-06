@@ -61,7 +61,6 @@ TESTS = commutative.sy \
         strings-trivial.sy \
         General_plus10.sy \
         qe.sy \
-        cggmp.sy \
         parse-bv-let.sy
 
 
@@ -76,6 +75,7 @@ EXTRA_DIST = $(TESTS) \
 #TESTS += \
 # error.cvc
 #endif
+# cggmp.sy  # FIXME invariant templates
 
 # disabled tests, yet distribute
 #EXTRA_DIST += \
