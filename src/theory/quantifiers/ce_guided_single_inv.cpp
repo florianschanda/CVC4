@@ -285,7 +285,7 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
                   d_templ[prog] = d_ti[si_q].constructFormulaTrace( dt );
                   Trace("cegqi-inv") << "By finite deterministic terminating trace, a solution invariant is : " << std::endl;
                   Trace("cegqi-inv") << "   " << d_templ[prog] << std::endl;
-                  // FIXME : this should be uncessary
+                  // FIXME : this should be unnecessary
                   d_templ[prog] = NodeManager::currentNM()->mkNode( AND, d_templ[prog], d_templ_arg[prog] );
                 }
               }else{
@@ -316,32 +316,6 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
       //we are fully single invocation
       singleInvocation = true;
     }
-
-    if( singleInvocation ){
-      d_single_inv = d_sip->getSingleInvocation();
-      d_single_inv = TermDb::simpleNegate( d_single_inv );
-      if( !d_sip->d_func_vars.empty() ){
-        Node pbvl = NodeManager::currentNM()->mkNode( BOUND_VAR_LIST, d_sip->d_func_vars );
-        d_single_inv = NodeManager::currentNM()->mkNode( FORALL, pbvl, d_single_inv );
-      }
-      //now, introduce the skolems
-      for( unsigned i=0; i<d_sip->d_si_vars.size(); i++ ){
-        Node v = NodeManager::currentNM()->mkSkolem( "a", d_sip->d_si_vars[i].getType(), "single invocation arg" );
-        d_single_inv_arg_sk.push_back( v );
-      }
-      d_single_inv = d_single_inv.substitute( d_sip->d_si_vars.begin(), d_sip->d_si_vars.end(), d_single_inv_arg_sk.begin(), d_single_inv_arg_sk.end() );
-      Trace("cegqi-si") << "Single invocation formula is : " << d_single_inv << std::endl;
-      if( options::cbqiPreRegInst() && d_single_inv.getKind()==FORALL ){
-        //just invoke the presolve now
-        d_cinst->presolve( d_single_inv );
-      }
-    }else{
-      Trace("cegqi-si") << "Formula is not single invocation." << std::endl;
-      if( options::cegqiSingleInvAbort() ){
-        Notice() << "Property is not single invocation." << std::endl;
-        exit( 1 );
-      }
-    }
   }
   
   // now, construct the grammar
@@ -352,9 +326,7 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
     std::map< Node, bool > visited;
     collectConstants( si_q[1], extra_cons, visited );
   }
-  
-
-  //convert to deep embedding
+  bool is_syntax_restricted = false;
   std::vector< Node > qchildren;
   std::map< Node, Node > visited;
   std::map< Node, Node > synth_fun_vars;
@@ -394,6 +366,18 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
       tn = d_qe->getTermDatabaseSygus()->mkSygusTemplateType( templ, d_templ_arg[sf], tn, sfvl, ss.str() );
     }
     d_qe->getTermDatabaseSygus()->registerSygusType( tn );
+    // check grammar restrictions
+    if( !d_qe->getTermDatabaseSygus()->sygusToBuiltinType( tn ).isBoolean() ){
+      if( !d_qe->getTermDatabaseSygus()->hasKind( tn, ITE ) ){
+        d_has_ites = false;
+      }
+    }
+    Assert( tn.isDatatype() );
+    const Datatype& dt = ((DatatypeType)(tn).toType()).getDatatype();
+    Assert( dt.isSygus() );
+    if( !dt.getSygusAllowAll() ){
+      is_syntax_restricted = true;
+    }
 
     // ev is the first-order variable corresponding to this synth fun
     std::stringstream ssf;
@@ -413,27 +397,38 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
   Trace("ajr-temp") << "Converted to embedding : " << q << std::endl;
   d_quant = q;
 
-
-  bool is_syntax_restricted = false;
-  for( unsigned i=0; i<q[0].getNumChildren(); i++ ){
-    //check whether all types have ITE
-    TypeNode tn = q[0][i].getType();
-    d_qe->getTermDatabaseSygus()->registerSygusType( tn );
-    if( !d_qe->getTermDatabaseSygus()->sygusToBuiltinType( tn ).isBoolean() ){
-      if( !d_qe->getTermDatabaseSygus()->hasKind( tn, ITE ) ){
-        d_has_ites = false;
-      }
-    }
-    Assert( tn.isDatatype() );
-    const Datatype& dt = ((DatatypeType)(tn).toType()).getDatatype();
-    Assert( dt.isSygus() );
-    if( !dt.getSygusAllowAll() ){
-      is_syntax_restricted = true;
-    }
-  }
-  if( options::cegqiSingleInvMode()==CEGQI_SI_MODE_USE && is_syntax_restricted ){
+  // do not do single invocation if grammar is restricted and CEGQI_SI_MODE_ALL is not enabled
+  if( options::cegqiSingleInvMode()==CEGQI_SI_MODE_USE && singleInvocation && is_syntax_restricted ){
     singleInvocation = false;
     Trace("cegqi-si") << "...grammar is restricted, do not use single invocation techniques." << std::endl;
+  }
+
+  // we now have determined whether we will do single invocation techniques
+  if( singleInvocation ){
+    d_single_inv = d_sip->getSingleInvocation();
+    d_single_inv = TermDb::simpleNegate( d_single_inv );
+    if( !d_sip->d_func_vars.empty() ){
+      Node pbvl = NodeManager::currentNM()->mkNode( BOUND_VAR_LIST, d_sip->d_func_vars );
+      d_single_inv = NodeManager::currentNM()->mkNode( FORALL, pbvl, d_single_inv );
+    }
+    //now, introduce the skolems
+    for( unsigned i=0; i<d_sip->d_si_vars.size(); i++ ){
+      Node v = NodeManager::currentNM()->mkSkolem( "a", d_sip->d_si_vars[i].getType(), "single invocation arg" );
+      d_single_inv_arg_sk.push_back( v );
+    }
+    d_single_inv = d_single_inv.substitute( d_sip->d_si_vars.begin(), d_sip->d_si_vars.end(), 
+                                            d_single_inv_arg_sk.begin(), d_single_inv_arg_sk.end() );
+    Trace("cegqi-si") << "Single invocation formula is : " << d_single_inv << std::endl;
+    if( options::cbqiPreRegInst() && d_single_inv.getKind()==FORALL ){
+      //just invoke the presolve now
+      d_cinst->presolve( d_single_inv );
+    }
+  }else{
+    Trace("cegqi-si") << "Formula is not single invocation." << std::endl;
+    if( options::cegqiSingleInvAbort() ){
+      Notice() << "Property is not single invocation." << std::endl;
+      exit( 1 );
+    }
   }
 }
 
