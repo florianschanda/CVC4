@@ -439,7 +439,8 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
 
 bool CegConjectureSingleInv::doAddInstantiation( std::vector< Node >& subs ){
   Assert( d_single_inv_sk.size()==subs.size() );
-  Trace("cegqi-si-inst-debug") << "CegConjectureSingleInv::doAddInstantiation..." << std::endl;
+  Trace("cegqi-si-inst-debug") << "CegConjectureSingleInv::doAddInstantiation, #vars = ";
+  Trace("cegqi-si-inst-debug") << d_single_inv_sk.size() << "..." << std::endl;
   std::stringstream siss;
   if( Trace.isOn("cegqi-si-inst-debug") || Trace.isOn("cegqi-engine") ){
     siss << "  * single invocation: " << std::endl;
@@ -455,36 +456,45 @@ bool CegConjectureSingleInv::doAddInstantiation( std::vector< Node >& subs ){
     }
   }
   Trace("cegqi-si-inst-debug") << siss.str();
+  
   bool alreadyExists;
-  if( options::incrementalSolving() ){
-    alreadyExists = !d_c_inst_match_trie->addInstMatch( d_qe, d_single_inv, subs, d_qe->getUserContext() );
+  Node lem;
+  if( subs.empty() ){
+    Assert( d_single_inv.getKind()!=FORALL );
+    alreadyExists = false;
+    lem = d_single_inv;
   }else{
-    alreadyExists = !d_inst_match_trie.addInstMatch( d_qe, d_single_inv, subs );
-  }
-  Trace("cegqi-si-inst-debug") << "  * success = " << !alreadyExists << std::endl;
-  //Trace("cegqi-si-inst-debug") << siss.str();
-  //Trace("cegqi-si-inst-debug") << "  * success = " << !alreadyExists << std::endl;
-  if( alreadyExists ){
-    return false;
-  }else{
-    Trace("cegqi-engine") << siss.str() << std::endl;
-    Assert( d_single_inv_var.size()==subs.size() );
-    Node lem = d_single_inv[1].substitute( d_single_inv_var.begin(), d_single_inv_var.end(), subs.begin(), subs.end() );
-    if( d_qe->getTermDatabase()->containsVtsTerm( lem ) ){
-      Trace("cegqi-engine-debug") << "Rewrite based on vts symbols..." << std::endl;
-      lem = d_qe->getTermDatabase()->rewriteVtsSymbols( lem );
+    Assert( d_single_inv.getKind()==FORALL );
+    if( options::incrementalSolving() ){
+      alreadyExists = !d_c_inst_match_trie->addInstMatch( d_qe, d_single_inv, subs, d_qe->getUserContext() );
+    }else{
+      alreadyExists = !d_inst_match_trie.addInstMatch( d_qe, d_single_inv, subs );
     }
-    Trace("cegqi-engine-debug") << "Rewrite..." << std::endl;
-    lem = Rewriter::rewrite( lem );
-    Trace("cegqi-si") << "Single invocation lemma : " << lem << std::endl;
-    if( std::find( d_lemmas_produced.begin(), d_lemmas_produced.end(), lem )==d_lemmas_produced.end() ){
-      d_curr_lemmas.push_back( lem );
-      d_lemmas_produced.push_back( lem );
-      d_inst.push_back( std::vector< Node >() );
-      d_inst.back().insert( d_inst.back().end(), subs.begin(), subs.end() );
+    Trace("cegqi-si-inst-debug") << "  * success = " << !alreadyExists << std::endl;
+    //Trace("cegqi-si-inst-debug") << siss.str();
+    //Trace("cegqi-si-inst-debug") << "  * success = " << !alreadyExists << std::endl;
+    if( alreadyExists ){
+      return false;
+    }else{
+      Trace("cegqi-engine") << siss.str() << std::endl;
+      Assert( d_single_inv_var.size()==subs.size() );
+      lem = d_single_inv[1].substitute( d_single_inv_var.begin(), d_single_inv_var.end(), subs.begin(), subs.end() );
+      if( d_qe->getTermDatabase()->containsVtsTerm( lem ) ){
+        Trace("cegqi-engine-debug") << "Rewrite based on vts symbols..." << std::endl;
+        lem = d_qe->getTermDatabase()->rewriteVtsSymbols( lem );
+      }
     }
-    return true;
   }
+  Trace("cegqi-engine-debug") << "Rewrite..." << std::endl;
+  lem = Rewriter::rewrite( lem );
+  Trace("cegqi-si") << "Single invocation lemma : " << lem << std::endl;
+  if( std::find( d_lemmas_produced.begin(), d_lemmas_produced.end(), lem )==d_lemmas_produced.end() ){
+    d_curr_lemmas.push_back( lem );
+    d_lemmas_produced.push_back( lem );
+    d_inst.push_back( std::vector< Node >() );
+    d_inst.back().insert( d_inst.back().end(), subs.begin(), subs.end() );
+  }
+  return true;
 }
 
 bool CegConjectureSingleInv::isEligibleForInstantiation( Node n ) {

@@ -615,7 +615,6 @@ Node CegInstantiator::applySubstitution( TypeNode tn, Node n, std::vector< Node 
 }
 
 bool CegInstantiator::check() {
-  Trace("ajr-temp") << "CegInstantiator::check()" << std::endl;
   if( d_qe->getTheoryEngine()->needCheck() ){
     Trace("cbqi-engine") << "  CEGQI instantiator : wait until all ground theories are finished." << std::endl;
     return false;
