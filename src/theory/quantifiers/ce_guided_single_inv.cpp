@@ -406,30 +406,38 @@ void CegConjectureSingleInv::initialize( Node si_q ) {
     // sfvl may be null for constant synthesis functions
     Trace("cegqi-debug") << "...sygus var list associated with " << sf << " is " << sfvl << std::endl;
     TypeNode tn;
+    std::stringstream ss;
+    ss << sf;
     if( v.getType().isDatatype() && ((DatatypeType)v.getType().toType()).getDatatype().isSygus() ){
       tn = v.getType();
     }else{
       // make the default grammar
-      std::stringstream ss;
-      ss << sf;
       tn = d_qe->getTermDatabaseSygus()->mkSygusDefaultType( v.getType(), sfvl, ss.str(), extra_cons );
     }
-    d_qe->getTermDatabaseSygus()->registerSygusType( tn );
     // if there is a template for this argument, make a sygus type on top of it
     std::map< Node, Node >::iterator itt = d_templ.find( sf );
     if( itt!=d_templ.end() ){
       Node templ = itt->second;
+      std::vector< Node > vars;
+      vars.insert( vars.end(), d_prog_templ_vars[sf].begin(), d_prog_templ_vars[sf].end() );
+      std::vector< Node > subs;
+      for( unsigned j=0; j<sfvl.getNumChildren(); j++ ){
+        subs.push_back( sfvl[j] );
+      }
+      Assert( vars.size()==subs.size() );
+      templ = templ.substitute( vars.begin(), vars.end(), subs.begin(), subs.end() );
       if( Trace.isOn("cegqi-debug") ){
         Trace("cegqi-debug") << "Template for " << sf << " is : " << templ << " with arg " << d_templ_arg[sf] << std::endl;
         Trace("cegqi-debug") << "  embed this template as a grammar..." << std::endl;
       }
-      // TODO
+      tn = d_qe->getTermDatabaseSygus()->mkSygusTemplateType( templ, d_templ_arg[sf], tn, sfvl, ss.str() );
     }
+    d_qe->getTermDatabaseSygus()->registerSygusType( tn );
 
     // ev is the first-order variable corresponding to this synth fun
-    std::stringstream ss;
-    ss << "f" << sf;
-    Node ev = NodeManager::currentNM()->mkBoundVar( ss.str(), tn ); 
+    std::stringstream ssf;
+    ssf << "f" << sf;
+    Node ev = NodeManager::currentNM()->mkBoundVar( ssf.str(), tn ); 
     ebvl.push_back( ev );
     synth_fun_vars[sf] = ev;
     Trace("cegqi") << "...embedding synth fun : " << sf << " -> " << ev << std::endl;
