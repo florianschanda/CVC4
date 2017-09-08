@@ -122,7 +122,6 @@ class CegConjectureSingleInv {
   SingleInvocationPartition* d_sip;
   std::map< Node, TransitionInference > d_ti;
   CegConjectureSingleInvSol* d_sol;
-  CegEntailmentInfer* d_ei;
   // the instantiator
   CegqiOutputSingleInv* d_cosi;
   CegInstantiator* d_cinst;
@@ -200,16 +199,10 @@ class CegConjectureSingleInv {
   bool hasITEs() { return d_has_ites; }
   // is single invocation
   bool isSingleInvocation() const { return !d_single_inv.isNull(); }
-  // is single invocation
-  bool isFullySingleInvocation() const {
-    return !d_single_inv.isNull() && d_nsingle_inv.isNull();
-  }
   //needs check
   bool needsCheck();
   /** preregister conjecture */
   void preregisterConjecture( Node q );
-  //initialize next candidate si conjecture (if not fully single invocation)
-  void initializeNextSiConjecture();
 
   Node getTransPre(Node prog) const {
     std::map<Node, Node>::const_iterator location = d_trans_pre.find(prog);

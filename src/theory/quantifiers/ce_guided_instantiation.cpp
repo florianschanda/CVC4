@@ -157,54 +157,22 @@ bool CegConjecture::isSingleInvocation() const {
   return d_ceg_si->isSingleInvocation();
 }
 
-bool CegConjecture::isFullySingleInvocation() {
-  return d_ceg_si->isFullySingleInvocation();
-}
-
 bool CegConjecture::needsCheck( std::vector< Node >& lem ) {
   if( isSingleInvocation() && !d_ceg_si->needsCheck() ){
     return false;
   }else{
     bool value;
-    if( !isSingleInvocation() || isFullySingleInvocation() ){
-      Assert( !getGuard().isNull() );
-      // non or fully single invocation : look at guard only
-      if( d_qe->getValuation().hasSatValue( getGuard(), value ) ) {
-        if( !value ){
-          Trace("cegqi-engine-debug") << "Conjecture is infeasible." << std::endl;
-          return false;
-        }
-      }else{
-        Assert( false );
+    Assert( !getGuard().isNull() );
+    // non or fully single invocation : look at guard only
+    if( d_qe->getValuation().hasSatValue( getGuard(), value ) ) {
+      if( !value ){
+        Trace("cegqi-engine-debug") << "Conjecture is infeasible." << std::endl;
+        return false;
       }
     }else{
-      // not fully single invocation : infeasible if overall specification is infeasible
-      Assert( !d_ceg_si->d_full_guard.isNull() );
-      if( d_qe->getValuation().hasSatValue( d_ceg_si->d_full_guard, value ) ) {
-        if( !value ){
-          Trace("cegqi-nsi") << "NSI : found full specification is infeasible." << std::endl;
-          return false;
-        }else{
-          Assert( !d_ceg_si->d_si_guard.isNull() );
-          if( d_qe->getValuation().hasSatValue( d_ceg_si->d_si_guard, value ) ) {
-            if( !value ){
-              if( !d_ceg_si->d_single_inv_exp.isNull() ){
-                //this should happen infrequently : only if cegqi determines infeasibility of a false candidate before E-matching does
-                Trace("cegqi-nsi") << "NSI : current single invocation lemma was infeasible, block assignment upon which conjecture was based." << std::endl;
-                Node l = NodeManager::currentNM()->mkNode( OR, d_ceg_si->d_full_guard.negate(), d_ceg_si->d_single_inv_exp );
-                lem.push_back( l );
-                d_ceg_si->initializeNextSiConjecture();
-              }
-              return false;
-            }
-          }else{
-            Assert( false );
-          }
-        }
-      }else{
-        Assert( false );
-      }
+      Assert( false );
     }
+
     return true;
   }
 }
