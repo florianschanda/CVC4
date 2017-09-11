@@ -3018,8 +3018,8 @@ TypeNode TermDbSygus::mkSygusTemplateTypeRec( Node templ, Node templ_arg, TypeNo
     datatypes.push_back(Datatype(dbname));
     Node op;
     std::vector< Type > argTypes;
-    if( !TermDb::containsTerm( templ, templ_arg ) ){
-      // make defined function
+    if( templ.getNumChildren()==0 ){
+      // TODO : can short circuit to this case when !TermDb::containsTerm( templ, templ_arg )
       op = templ;
     }else{
       Assert( templ.hasOperator() );
