@@ -71,7 +71,7 @@ public:
   std::vector< Node > d_vars;
   std::vector< Node > d_prime_vars;
   Node d_func;
-  
+
   class Component {
   public:
     Component(){}
@@ -81,12 +81,12 @@ public:
     bool has( Node c ) { return std::find( d_conjuncts.begin(), d_conjuncts.end(), c )!=d_conjuncts.end(); }
   };
   std::map< int, Component > d_com;
-  
+
   void initialize( Node f, std::vector< Node >& vars );
   void process( Node n );
   Node getComponent( int i );
   bool isComplete() { return d_complete; }
-  
+
   // 0 : success, 1 : terminated, 2 : counterexample, -1 : invalid
   int initializeTrace( DetTrace& dt, Node loc, bool fwd = true );
   int incrementTrace( DetTrace& dt, Node loc, bool fwd = true );
@@ -110,20 +110,18 @@ class CegConjectureSingleInv {
   Node constructSolution(std::vector<unsigned>& indices, unsigned i,
                          unsigned index, std::map<Node, Node>& weak_imp);
   Node postProcessSolution(Node n);
-
- private:
-  /** get embedding */
-  Node convertToEmbedding( Node n, std::map< Node, Node >& synth_fun_vars, std::map< Node, Node >& visited );
-  /** collect constants */
-  void collectConstants( Node n, std::map< TypeNode, std::vector< Node > >& consts, std::map< Node, bool >& visited );
  private:
   QuantifiersEngine* d_qe;
   CegConjecture* d_parent;
+  // single invocation inference utility
   SingleInvocationPartition* d_sip;
+  // transition inference module for each function to synthesize
   std::map< Node, TransitionInference > d_ti;
+  // solution reconstruction
   CegConjectureSingleInvSol* d_sol;
-  // the instantiator
+  // the instantiator's output channel
   CegqiOutputSingleInv* d_cosi;
+  // the instantiator
   CegInstantiator* d_cinst;
 
   // list of skolems for each argument of programs
@@ -161,33 +159,27 @@ class CegConjectureSingleInv {
  public:
   CegConjectureSingleInv( QuantifiersEngine * qe, CegConjecture * p );
   ~CegConjectureSingleInv();
-  // deep embedding conjecture
-  Node d_quant;
   // original conjecture
   Node d_orig_quant;
+  // are we single invocation?
+  bool d_single_invocation;
   // single invocation portion of quantified formula
   Node d_single_inv;
   Node d_si_guard;
-  // non-single invocation portion of quantified formula
-  Node d_nsingle_inv;
-  Node d_ns_guard;
-  // full version quantified formula
-  Node d_full_inv;
-  Node d_full_guard;
-  //explanation for current single invocation conjecture
-  Node d_single_inv_exp;
   // transition relation version per program
   std::map< Node, Node > d_trans_pre;
   std::map< Node, Node > d_trans_post;
-  // the template for the solution
-  std::map< Node, std::vector< Node > > d_prog_templ_vars;
+  // the template for each function to synthesize
   std::map< Node, Node > d_templ;
+  // the template argument for each function to synthesize (occurs in exactly one position of its template)
   std::map< Node, Node > d_templ_arg;
  public:
   //get the single invocation lemma(s)
   void getInitialSingleInvLemma( std::vector< Node >& lems );
   //initialize
   void initialize( Node si_q );
+  // finish initialize
+  void finishInit( bool syntaxRestricted, bool hasItes );
   //check
   bool check( std::vector< Node >& lems );
   //get solution
@@ -213,6 +205,7 @@ class CegConjectureSingleInv {
     std::map<Node, Node>::const_iterator location = d_trans_post.find(prog);
     return location->second;
   }
+  // get template for program prog. This returns a term of the form t[x] where x is the template argument (see below)
   Node getTemplate(Node prog) const {
     std::map<Node, Node>::const_iterator tmpl = d_templ.find(prog);
     if( tmpl!=d_templ.end() ){
@@ -221,6 +214,8 @@ class CegConjectureSingleInv {
       return Node::null();
     }
   }
+  // get the template argument for program prog.
+  // This is a variable which indicates the position of the function/predicate to synthesize.
   Node getTemplateArg(Node prog) const {
     std::map<Node, Node>::const_iterator tmpla = d_templ_arg.find(prog);
     if( tmpla != d_templ_arg.end() ){
@@ -229,7 +224,6 @@ class CegConjectureSingleInv {
       return Node::null();
     }
   }
-
 };
 
 // partitions any formulas given to it into single invocation/non-single
